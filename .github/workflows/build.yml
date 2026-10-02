@@ -1,0 +1,36 @@
+name: Build MyOS ISO
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm gcc-multilib grub-pc-bin grub-common xorriso mtools
+
+      - name: Build kernel
+        run: |
+          nasm -f elf32 boot.S -o boot.o
+          gcc -m32 -ffreestanding -fno-stack-protector -fno-pic -O2 -c kernel.c -o kernel.o
+          gcc -m32 -T linker.ld -ffreestanding -nostdlib -no-pie -o myos.bin boot.o kernel.o
+
+      - name: Build ISO
+        run: |
+          mkdir -p iso/boot/grub
+          cp myos.bin iso/boot/myos.bin
+          cp grub.cfg iso/boot/grub/grub.cfg
+          grub-mkrescue -o myos.iso iso
+
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: myos-iso
+          path: myos.iso
